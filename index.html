@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WebpConverter</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    </head>
+    <body>
+        <div class="layout">
+            <h1>Convert image to webp format</h1>
+            <div>
+                <input type="file" multiple accept="image/*">
+                <button id="downloadAll" style="display: none;">Download All</button>
+            </div>
+            <div id="previews"></div>
+            <div class="dropTarget"></div>
+        </div>
+    </body>
+</html>
+
+<script >
+let refs = {};
+refs.imagePreviews = document.querySelector('#previews');
+refs.fileSelector = document.querySelector('input[type=file]');
+refs.downloadAllBtn = document.querySelector('#downloadAll');
+
+function addImageBox(container) {
+  let imageBox = document.createElement("div");
+  let progressBox = document.createElement("progress");
+  imageBox.appendChild(progressBox);
+  container.appendChild(imageBox);
+  
+  return imageBox;
+}
+
+function updateDownloadAllButton() {
+  const hasImages = refs.imagePreviews.querySelectorAll('a[download]').length > 0;
+  refs.downloadAllBtn.style.display = hasImages ? 'inline-block' : 'none';
+}
+
+async function downloadAllImages() {
+  const links = refs.imagePreviews.querySelectorAll('a[download]');
+  
+  if (links.length === 0) return;
+  
+  const zip = new JSZip();
+  const folder = zip.folder("webp-images");
+  
+  // Récupérer toutes les images et les ajouter au ZIP
+  const promises = Array.from(links).map(async (link) => {
+    const response = await fetch(link.href);
+    const blob = await response.blob();
+    const filename = link.getAttribute('download');
+    folder.file(filename, blob);
+  });
+  
+  await Promise.all(promises);
+  
+  // Générer le ZIP et le télécharger
+  const content = await zip.generateAsync({type: "blob"});
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'webp-images.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function processFile(file) {
+  if (!file) {
+    return;
+  }
+  console.log(file);
+
+  let imageBox = addImageBox(refs.imagePreviews);
+
+  // Load the data into an image
+  new Promise(function (resolve, reject) {
+    let rawImage = new Image();
+
+    rawImage.addEventListener("load", function () {
+      resolve(rawImage);
+    });
+
+    rawImage.src = URL.createObjectURL(file);
+  })
+  .then(function (rawImage) {
+    // Convert image to webp ObjectURL via a canvas blob
+    return new Promise(function (resolve, reject) {
+      let canvas = document.createElement('canvas');
+      let ctx = canvas.getContext("2d");
+
+      canvas.width = rawImage.width;
+      canvas.height = rawImage.height;
+      ctx.drawImage(rawImage, 0, 0);
+
+      canvas.toBlob(function (blob) {
+        resolve(URL.createObjectURL(blob));
+      }, "image/webp");
+    });
+  })
+  .then(function (imageURL) {
+    // Load image for display on the page
+    return new Promise(function (resolve, reject) {
+      let scaledImg = new Image();
+
+      scaledImg.addEventListener("load", function () {
+        resolve({imageURL, scaledImg});
+      });
+
+      scaledImg.setAttribute("src", imageURL);
+    });
+  })
+  .then(function (data) {
+    // Inject into the DOM
+    let imageLink = document.createElement("a");
+
+    imageLink.setAttribute("href", data.imageURL);
+    imageLink.setAttribute('download', `${file.name}.webp`);
+    imageLink.appendChild(data.scaledImg);
+
+    imageBox.innerHTML = "";
+    imageBox.appendChild(imageLink);
+    
+    // Mettre à jour la visibilité du bouton Download All
+    updateDownloadAllButton();
+  });
+}
+
+function processFiles(files) {
+  for (let file of files) {
+    processFile(file);
+  }
+}
+
+function fileSelectorChanged() {
+  processFiles(refs.fileSelector.files);
+  refs.fileSelector.value = "";
+}
+
+refs.fileSelector.addEventListener("change", fileSelectorChanged);
+refs.downloadAllBtn.addEventListener("click", downloadAllImages);
+
+// Set up Drag and Drop
+function dragenter(e) {
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+function dragover(e) {
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+function drop(callback, e) {
+  e.stopPropagation();
+  e.preventDefault();
+  callback(e.dataTransfer.files);
+}
+
+function setDragDrop(area, callback) {
+  area.addEventListener("dragenter", dragenter, false);
+  area.addEventListener("dragover", dragover, false);
+  area.addEventListener("drop", function (e) { drop(callback, e); }, false);
+}
+setDragDrop(document.documentElement, processFiles);
+</script>
