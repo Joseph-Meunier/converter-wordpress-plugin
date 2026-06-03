@@ -3,15 +3,22 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WebpConverter</title>
+        <title>Image Converter</title>
         <link rel="stylesheet" href="style.css">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     </head>
     <body>
         <div class="layout">
-            <h1>Convert image to webp format</h1>
+            <h1>Convert image to any format</h1>
             <div>
                 <input type="file" multiple accept="image/*">
+                <select id="formatSelect">
+                    <option value="webp">WebP</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="png">PNG</option>
+                    <option value="gif">GIF</option>
+                    <option value="svg">SVG</option>
+                </select>
                 <button id="downloadAll" style="display: none;">Download All</button>
             </div>
             <div id="previews"></div>
@@ -25,6 +32,33 @@ let refs = {};
 refs.imagePreviews = document.querySelector('#previews');
 refs.fileSelector = document.querySelector('input[type=file]');
 refs.downloadAllBtn = document.querySelector('#downloadAll');
+refs.formatSelect = document.querySelector('#formatSelect');
+
+function getFormatExt(format) {
+  switch (format) {
+    case 'jpeg': return 'jpg';
+    case 'svg': return 'svg';
+    case 'webp': return 'webp';
+    case 'png': return 'png';
+    case 'gif': return 'gif';
+    default: return format;
+  }
+}
+
+function getMimeType(format) {
+  const map = {
+    webp: 'image/webp',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    svg: 'image/svg+xml'
+  };
+  return map[format] || 'image/webp';
+}
+
+function getFormatName(format) {
+  return format + '-images';
+}
 
 function addImageBox(container) {
   let imageBox = document.createElement("div");
@@ -46,24 +80,25 @@ async function downloadAllImages() {
   if (links.length === 0) return;
   
   const zip = new JSZip();
-  const folder = zip.folder("webp-images");
-  
-  // Récupérer toutes les images et les ajouter au ZIP
-  const promises = Array.from(links).map(async (link) => {
-    const response = await fetch(link.href);
-    const blob = await response.blob();
-    const filename = link.getAttribute('download');
-    folder.file(filename, blob);
-  });
-  
-  await Promise.all(promises);
-  
-  // Générer le ZIP et le télécharger
-  const content = await zip.generateAsync({type: "blob"});
-  const url = URL.createObjectURL(content);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'webp-images.zip';
+    const format = refs.formatSelect.value;
+    const folder = zip.folder(getFormatName(format));
+
+    // Récupérer toutes les images et les ajouter au ZIP
+    const promises = Array.from(links).map(async (link) => {
+      const response = await fetch(link.href);
+      const blob = await response.blob();
+      const filename = link.getAttribute('download');
+      folder.file(filename, blob);
+    });
+
+    await Promise.all(promises);
+
+    // Générer le ZIP et le télécharger
+    const content = await zip.generateAsync({type: "blob"});
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = getFormatName(format) + '.zip';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -89,8 +124,9 @@ function processFile(file) {
     rawImage.src = URL.createObjectURL(file);
   })
   .then(function (rawImage) {
-    // Convert image to webp ObjectURL via a canvas blob
+    // Convert image to selected format ObjectURL via a canvas blob
     return new Promise(function (resolve, reject) {
+      let format = refs.formatSelect.value;
       let canvas = document.createElement('canvas');
       let ctx = canvas.getContext("2d");
 
@@ -98,9 +134,32 @@ function processFile(file) {
       canvas.height = rawImage.height;
       ctx.drawImage(rawImage, 0, 0);
 
-      canvas.toBlob(function (blob) {
-        resolve(URL.createObjectURL(blob));
-      }, "image/webp");
+      if (format === 'svg') {
+        // For SVG: create an SVG element with base64 embedded image
+        let svgDoc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
+        let svgElement = svgDoc.documentElement;
+        svgElement.setAttribute('width', rawImage.width);
+        svgElement.setAttribute('height', rawImage.height);
+        svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        // Get the image as base64 data URL from canvas
+        let dataURL = canvas.toDataURL('image/png');
+        
+        let imageElement = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'image');
+        imageElement.setAttribute('width', rawImage.width);
+        imageElement.setAttribute('height', rawImage.height);
+        imageElement.setAttribute('href', dataURL);
+        svgElement.appendChild(imageElement);
+
+        let serializer = new XMLSerializer();
+        let svgString = serializer.serializeToString(svgElement);
+        let svgBlob = new Blob([svgString], {type: 'image/svg+xml'});
+        resolve(URL.createObjectURL(svgBlob));
+      } else {
+        canvas.toBlob(function (blob) {
+          resolve(URL.createObjectURL(blob));
+        }, getMimeType(format));
+      }
     });
   })
   .then(function (imageURL) {
@@ -117,10 +176,12 @@ function processFile(file) {
   })
   .then(function (data) {
     // Inject into the DOM
+    let format = refs.formatSelect.value;
+    let ext = getFormatExt(format);
     let imageLink = document.createElement("a");
 
     imageLink.setAttribute("href", data.imageURL);
-    imageLink.setAttribute('download', `${file.name}.webp`);
+    imageLink.setAttribute('download', `${file.name}.${ext}`);
     imageLink.appendChild(data.scaledImg);
 
     imageBox.innerHTML = "";
