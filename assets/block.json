@@ -1,0 +1,23 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "webp-converter/converter",
+    "version": "1.0.0",
+    "title": "Image Converter",
+    "category": "media",
+    "description": "Convert images to WebP, JPEG, PNG, GIF, and SVG formats directly in the browser.",
+    "keywords": [ "image", "convert", "webp", "jpeg", "png" ],
+    "textdomain": "webp-converter",
+    "provides": {
+        "shortcode": "webp_converter"
+    },
+    "attributes": {
+        "formats": {
+            "type": "string",
+            "default": "webp,jpeg,png,gif,svg"
+        }
+    },
+    "editorScript": "file:./index.js",
+    "editorStyle": "file:./editor.css",
+    "style": "file:./style.css"
+}

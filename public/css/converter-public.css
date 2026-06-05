@@ -1,0 +1,74 @@
+/**
+ * Public styles for WebP Converter plugin.
+ */
+
+.webp-converter-wrapper {
+    padding: 20px;
+    font-family: sans-serif;
+    max-width: 100%;
+}
+
+.webp-converter-title {
+    margin-top: 0;
+}
+
+.webp-converter-file-input {
+    margin: 20px 0;
+}
+
+.webp-converter-controls {
+    margin-bottom: 15px;
+}
+
+.webp-converter-format-select {
+    margin-left: 10px;
+}
+
+.webp-converter-download-all-btn {
+    margin-left: 10px;
+}
+
+.webp-converter-previews img {
+    max-height: 100%;
+    max-width: 100%;
+    box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.75);
+}
+
+.webp-converter-drop-target {
+    position: relative;
+    border: 3px dashed silver;
+    flex-basis: auto;
+    flex-grow: 20;
+    min-height: 200px;
+}
+
+.webp-converter-drop-target::before {
+    content: '<?php esc_attr_e( 'Drop files here', 'webp-converter' ); ?>';
+    color: silver;
+    font-size: 5vh;
+    height: 5vh;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    text-align: center;
+    pointer-events: none;
+    user-select: none;
+}
+
+.webp-converter-previews > div {
+    box-sizing: border-box;
+    height: 240px;
+    width: 240px;
+    padding: 20px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    vertical-align: top;
+}
+
+.webp-converter-previews > div > progress {
+    width: 80%;
+}
